@@ -22,9 +22,8 @@ def getData(path, category):
         for file in os.listdir(folder_path):
             file_path = os.path.join(folder_path, file)
             ## read as grayscale image
-            img = cv2.imread(file_path, 0)
+            img = cv2.imread(file_path)
             images.append(img)
-            break
         data[folder] = images
 
     return data
@@ -45,7 +44,7 @@ def getEye(shape, dtype="int"):
 
     return eye1, eye2
 
-def detectEyeCenters(rects, img, predictor):
+def detectEyeNoseCenters(rects, img, predictor):
     ## there maybe multiple faces detected
     for (i, rect) in enumerate(rects):
         shape = predictor(img, rect)
@@ -63,14 +62,13 @@ def detectEyeCenters(rects, img, predictor):
 
         e1Center = (int(e1x/4), int(e1y/4))
         e2Center = (int(e2x/4), int(e2y/4))
+        nose = (shape.part(31).x, shape.part(31).y)
 
-        cv2.circle(img, e1Center, 10, (0, 0, 255), -1)
-        cv2.circle(img, e2Center, 10, (0, 0, 255), -1)
-        cv2.imshow("1", img)
-        cv2.waitKey(0)
-        return [e1Center, e2Center]
+        # cv2.imshow("1", img)
+        # cv2.waitKey(0)
+        return [e1Center, e2Center, nose]
 
-def getEyeCenters(detector, predictor, data):
+def getEyeNoseCenters(detector, predictor, data):
     rectData = dict()
     for k in data.keys():
         rectList = []
@@ -79,21 +77,63 @@ def getEyeCenters(detector, predictor, data):
             rects = detector(img, 1)
             ## determine the facial landmarks for the face region and then get
             ## coordinates of the eyes
-            eyeCentres = detectEyeCenters(rects, img, predictor)
-            rectList.append((img, eyeCentres))
+            gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            lst = detectEyeNoseCenters(rects, gray_img, predictor)
+            rectList.append((img, lst))
         rectData[k] = rectList
     return rectData
 
+def shiftAndRotate(data):
+    for cat in data.keys():
+        newImageList = []
+        for lst in data[cat]:
+            img = lst[0]
+            if lst[1] != None:
+                rightEye = lst[1][0]
+                leftEye = lst[1][1]
+                nose = lst[1][2]
+
+                pts1 = np.float32([[rightEye[0],rightEye[1]], [leftEye[0],leftEye[1]],[nose[0],nose[1]]])
+                pts2 = np.float32([[64,64],[192,64],[100,120]])
+
+                M = cv2.getAffineTransform(pts1,pts2)
+                newImage = cv2.warpAffine(img,M,(256,256))
+
+                newImageList.append(newImage)
+
+        data[cat] = newImageList
+
+def saveImages(data):
+    try:
+        os.stat("./NewData")
+    except:
+        os.mkdir("./NewData")
+
+    for cat in data.keys():
+        count = 0
+        try:
+            os.stat(os.path.join("./NewData", cat))
+        except:
+            os.mkdir(os.path.join("./NewData", cat))
+
+        for img in data[cat]:
+            folderpath = os.path.join("./NewData", cat)
+            filename = str(count)+".png"
+            imgpath = os.path.join(folderpath, filename)
+            cv2.imwrite(imgpath, img)
+            count = count+1
 
 if __name__ == "__main__":
     path = "./Data/"
     category = getCategories()
     ## data is a dictionary with categories as keys and image list as value
     data = getData(path, category)
-    print("Detection phase......")
+    print("Detecting......")
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor("predictorModel.dat")
     ## data is a dictionary with categories as keys and list of tuple of
-    ## image and their 2 eye centres as value
-    data = getEyeCenters(detector, predictor, data)
-    print(data["Aadhithya"][1][1])
+    ## image and their 2 eye centres and nose center as value
+    data = getEyeNoseCenters(detector, predictor, data)
+    print("Shifting and Rotating......")
+    shiftAndRotate(data)
+    saveImages(data)
