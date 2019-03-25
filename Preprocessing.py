@@ -74,12 +74,15 @@ def getEyeNoseCenters(detector, predictor, data):
         rectList = []
         for img in data[k]:
             ## detects the face first
-            rects = detector(img, 1)
-            ## determine the facial landmarks for the face region and then get
-            ## coordinates of the eyes
-            gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            lst = detectEyeNoseCenters(rects, gray_img, predictor)
-            rectList.append((img, lst))
+            try:
+                rects = detector(img, 1)
+                ## determine the facial landmarks for the face region and then get
+                ## coordinates of the eyes
+                gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                lst = detectEyeNoseCenters(rects, gray_img, predictor)
+                rectList.append((img, lst))
+            except:
+                pass
         rectData[k] = rectList
     return rectData
 
@@ -94,7 +97,7 @@ def shiftAndRotate(data):
                 nose = lst[1][2]
 
                 pts1 = np.float32([[rightEye[0],rightEye[1]], [leftEye[0],leftEye[1]],[nose[0],nose[1]]])
-                pts2 = np.float32([[64,64],[192,64],[100,120]])
+                pts2 = np.float32([[64,114],[192,114],[100,180]])
 
                 M = cv2.getAffineTransform(pts1,pts2)
                 newImage = cv2.warpAffine(img,M,(256,256))
