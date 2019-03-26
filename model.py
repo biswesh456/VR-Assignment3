@@ -3,7 +3,9 @@ import numpy as np
 import pandas as pd
 import os
 import cv2
+import warnings
 from matplotlib import pyplot as plt
+from sklearn.model_selection import train_test_split
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
@@ -11,6 +13,7 @@ from sklearn.svm import SVC
 from sklearn.model_selection import cross_val_score
 
 FILEPATH = './NewData/'
+warnings.filterwarnings('ignore')
 
 class Model:
     def __init__(self, file_path, n_components):
@@ -68,14 +71,14 @@ class Model:
 
     def generate_labels(self):
         labels = list()
-        for cat in self.category_list:
-            labels += [0]*len(self.data[cat])
+        for i, cat in enumerate(self.category_list):
+            labels += [i]*len(self.data[cat])
         return np.array(labels).reshape(-1, 1)
 
     def model_predict(self, models=list()):
         for model in models:
             scores = cross_val_score(model, self.pca_X, self.labels, cv=5, scoring='accuracy')
-            print(model.__class__.__name__, np.mean(scores))
+            print('PCA - ', model.__class__.__name__, np.mean(scores))
 
     def perform_lda(self):
         clf = LinearDiscriminantAnalysis()
@@ -83,18 +86,62 @@ class Model:
         scores = cross_val_score(clf, self.data_ravell, self.labels, cv=5, scoring='accuracy')
         print(clf.__class__.__name__, np.mean(scores))
 
-    def perform_lbp(self):
-        lbp = cv2.face.LBPHFaceRecognizer_create()
-        print(len(self.data_list))
-        print(len(self.labels))
-        lbp.train(self.data_list, self.labels)
-        lbp.predict(self.data_list)
+    def perform_face_recognition(self, model):
+        print("Running ", model.__class__.__name__)
+        train_data, test_data, train_labels, test_labels = train_test_split(self.data_list, self.labels, test_size=0.2, random_state=42)
+        model.train(train_data, train_labels)
+        # score = 0
+        # fail = 0
+        # for i in range(test_data.shape[0]):
+        #     if(model.predict(test_data[i, :, :])[0] == test_labels.reshape(-1)[i]):
+        #         score += 1
+        #     else:
+        #         fail += 1
+        # print(score/(score+fail))
 
-model = Model(file_path=FILEPATH, n_components=200)
-# model.perform_pca(show=True)
-# models = list()
-# models.append(LogisticRegression())
-# models.append(SVC(kernel='linear'))
-# model.model_predict(models=models)
-# model.perform_lda()
-model.perform_lbp()
+        def eval(n=1):
+            score = 0
+            for i in range(len(test_data)):
+                num = 0
+                id = model.predict(test_data[i, :, :])[0]
+                model.predict(test_data[i])[0]
+                model.predict_collect(test_data[i], collector)
+
+                results = collector.getResults(sorted=True)
+
+                for (label, dist) in results:
+                    if num < n:
+                        if label == test_labels[i]:
+                            score += 1
+                            break
+                    else:
+                        break
+                    num += 1
+            return score
+
+
+        total = test_data.shape[0]
+        collector = cv2.face.StandardCollector_create()
+        top_1_score = eval(1)
+        top_3_score = eval(3)
+        top_10_score = eval(10)
+
+        print("Top 1 accuracy", top_1_score/total)
+        print("Top 3 accuracy", top_3_score/total)
+        print("Top 10 accuracy", top_10_score/total)
+
+
+if __name__ == '__main__':
+    model = Model(file_path=FILEPATH, n_components=200)
+    model.perform_pca(show=True)
+    models = list()
+    models.append(LogisticRegression())
+    models.append(SVC(kernel='linear'))
+    model.model_predict(models=models)
+    model.perform_lda()
+    eigen_model = cv2.face.EigenFaceRecognizer_create()
+    fisher_model = cv2.face.FisherFaceRecognizer_create()
+    lbph_model = cv2.face.LBPHFaceRecognizer_create()
+    model.perform_face_recognition(eigen_model)
+    model.perform_face_recognition(fisher_model)
+    model.perform_face_recognition(lbph_model)
