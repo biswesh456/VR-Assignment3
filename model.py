@@ -75,6 +75,14 @@ class Model:
             labels += [i]*len(self.data[cat])
         return np.array(labels).reshape(-1, 1)
 
+    def create_gender_labels(self):
+        girls = ["Anagha", "Deepika", "Deepti", "Devyani", "Juhi", "Nehal", "Prachi", "Pragya", "Shiloni", "Sowmya", "Sravya", "Tripti"]
+        labels = list()
+        for cat in self.category_list:
+            labels += [1 if cat in girls else 0]*len(self.data[cat])
+
+        return np.array(labels).reshape(-1, 1)
+
     def model_predict(self, models=list()):
         for model in models:
             scores = cross_val_score(model, self.pca_X, self.labels, cv=5, scoring='accuracy')
