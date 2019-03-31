@@ -9,8 +9,6 @@ import warnings
 import matplotlib
 # matplotlib.use('MacOSX')
 import matplotlib.pyplot as plt
-# plt.plot(range(20), range(20))
-# plt.show()
 from sklearn.model_selection import train_test_split
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.decomposition import PCA
@@ -103,10 +101,35 @@ class Model:
 
         return np.array(labels).reshape(-1, 1)
 
+    # def topn(best_n,n)
+
     def model_predict(self, models=list()):
         for model in models:
             scores = cross_val_score(model, self.pca_X, self.labels, cv=5, scoring='accuracy')
             print('PCA - ', model.__class__.__name__, np.mean(scores))
+
+        def eval(probs, n, test_labels):
+            best_n = np.argsort(probs, axis=1)[:,-n:]
+            score = 0
+            fail = 0
+
+            for i, label in enumerate(test_labels):
+                top_n = best_n[i]
+                if label in top_n:
+                    score+= 1
+                else:
+                    fail+= 1
+            return (score/(score+fail))
+
+        train_data, test_data, train_labels, test_labels = train_test_split(self.pca_X, self.labels, test_size=0.2, random_state=42)
+        for model in models:
+            model.fit(train_data, train_labels)
+            probs = model.predict_proba(test_data)
+
+            print('PCA - Top 1', model.__class__.__name__, eval(probs, 1, test_labels))
+            print('PCA - Top 3', model.__class__.__name__, eval(probs, 3, test_labels))
+            print('PCA - Top 10', model.__class__.__name__, eval(probs, 10, test_labels))
+
 
     def perform_lda(self):
         clf = LinearDiscriminantAnalysis()
@@ -118,14 +141,6 @@ class Model:
         print("Running ", model.__class__.__name__)
         train_data, test_data, train_labels, test_labels = train_test_split(self.data_list, self.labels, test_size=0.2, random_state=42)
         model.train(train_data, train_labels)
-        # score = 0
-        # fail = 0
-        # for i in range(test_data.shape[0]):
-        #     if(model.predict(test_data[i, :, :])[0] == test_labels.reshape(-1)[i]):
-        #         score += 1
-        #     else:
-        #         fail += 1
-        # print(score/(score+fail))
 
         def eval(n=1):
             score = 0
@@ -160,17 +175,17 @@ class Model:
 
 
 if __name__ == '__main__':
-    model = Model(file_path=FILEPATH, n_components=200)
-    model.labels = model.create_gender_labels()
+    model = Model(file_path=FILEPATH, n_components=1000)
+    # model.labels = model.create_gender_labels()
     model.perform_pca(show=False)
     models = list()
     models.append(LogisticRegression())
-    models.append(SVC(kernel='linear'))
+    models.append(SVC(kernel='linear',probability=True))
     model.model_predict(models=models)
-    # model.perform_lda()
-    # eigen_model = cv2.face.EigenFaceRecognizer_create()
-    # fisher_model = cv2.face.FisherFaceRecognizer_create()
-    # lbph_model = cv2.face.LBPHFaceRecognizer_create()
-    # model.perform_face_recognition(eigen_model)
-    # model.perform_face_recognition(fisher_model)
-    # model.perform_face_recognition(lbph_model)
+    model.perform_lda()
+    eigen_model = cv2.face.EigenFaceRecognizer_create()
+    fisher_model = cv2.face.FisherFaceRecognizer_create()
+    lbph_model = cv2.face.LBPHFaceRecognizer_create()
+    model.perform_face_recognition(eigen_model)
+    model.perform_face_recognition(fisher_model)
+    model.perform_face_recognition(lbph_model)
