@@ -1,10 +1,16 @@
+
+
 from functools import reduce
 import numpy as np
-import pandas as pd
+# import pandas as pd
 import os
 import cv2
 import warnings
-from matplotlib import pyplot as plt
+import matplotlib
+# matplotlib.use('MacOSX')
+import matplotlib.pyplot as plt
+# plt.plot(range(20), range(20))
+# plt.show()
 from sklearn.model_selection import train_test_split
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.decomposition import PCA
@@ -61,12 +67,26 @@ class Model:
             eigen_faces = list(map(lambda x : x.reshape(256, 256), self.pca.components_))
             mean_eigen_face = reduce(lambda x, y : x + y, eigen_faces)
             plt.imshow(mean_eigen_face, 'gray')
+            plt.savefig('screenshots/meaneigenface.png')
             plt.show()
+
             for i, face in enumerate(eigen_faces):
                 plt.subplot(10, 20, 1+i)
                 plt.imshow(face, 'gray')
                 plt.xticks(list())
                 plt.yticks(list())
+            plt.savefig('screenshots/eigenfaces.png')
+            plt.show()
+
+            for i in range(10):
+                original_face = self.data_ravell[i].reshape(256, 256)
+                eigen_coefficients = list(self.pca_X[i])
+                eigen_face = sum(map(lambda coeff: eigen_faces[coeff[0]]*coeff[1], list(enumerate(eigen_coefficients))))
+                plt.subplot(2, 10, i+1)
+                plt.imshow(original_face, 'gray') , plt.xticks(list()), plt.yticks(list())
+                plt.subplot(2, 10, i+11)
+                plt.imshow(eigen_face, 'gray') , plt.xticks(list()), plt.yticks(list())
+            plt.savefig('screenshots/eigenfaces_comparison.png')
             plt.show()
 
     def generate_labels(self):
@@ -141,15 +161,16 @@ class Model:
 
 if __name__ == '__main__':
     model = Model(file_path=FILEPATH, n_components=200)
-    model.perform_pca(show=True)
+    model.labels = model.create_gender_labels()
+    model.perform_pca(show=False)
     models = list()
     models.append(LogisticRegression())
     models.append(SVC(kernel='linear'))
     model.model_predict(models=models)
-    model.perform_lda()
-    eigen_model = cv2.face.EigenFaceRecognizer_create()
-    fisher_model = cv2.face.FisherFaceRecognizer_create()
-    lbph_model = cv2.face.LBPHFaceRecognizer_create()
-    model.perform_face_recognition(eigen_model)
-    model.perform_face_recognition(fisher_model)
-    model.perform_face_recognition(lbph_model)
+    # model.perform_lda()
+    # eigen_model = cv2.face.EigenFaceRecognizer_create()
+    # fisher_model = cv2.face.FisherFaceRecognizer_create()
+    # lbph_model = cv2.face.LBPHFaceRecognizer_create()
+    # model.perform_face_recognition(eigen_model)
+    # model.perform_face_recognition(fisher_model)
+    # model.perform_face_recognition(lbph_model)
